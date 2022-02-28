@@ -49,10 +49,8 @@ class BaseTestCase(unittest.TestCase):
     def validate_handler_result(
         self,
         incoming_event: KeyEvent | TimeOut,
-        # incoming_state: GlobalState,
         incoming_state: tuple[list[BufferEvent], list[TestActiveCombo]],
         expected_action: ResultAction,
-        # expected_result_state: GlobalState,
         expected_result_state: tuple[list[BufferEvent], list[TestActiveCombo]],
     ):
         _incoming_state = GlobalState(
@@ -71,7 +69,6 @@ class BaseTestCase(unittest.TestCase):
             set(_incoming_state.buffer.keys),
             set(_expected_result_state.buffer.keys),
         )
-        # self.assertEqual(incoming_state.combos, expected_result_state.combos)
         for combo, expected_combo in zip(
             _incoming_state.combos, _expected_result_state.combos
         ):
