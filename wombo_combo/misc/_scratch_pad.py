@@ -1,4 +1,5 @@
-from main import BufferedKey, ComboMap, Key, flatten_2d_seq, get_possible_combos
+from main import (BufferedKey, ComboMap, Key, flatten_2d_seq,
+                  get_possible_combos)
 
 complex_config = dict(
     simul_combos=[
