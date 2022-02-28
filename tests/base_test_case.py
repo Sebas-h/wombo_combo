@@ -1,5 +1,6 @@
 import unittest
 from typing import Set
+from wombo_combo.global_state import Buffer
 
 from wombo_combo.input_event_codes import Key
 from wombo_combo.main import (
@@ -14,10 +15,10 @@ from wombo_combo.main import (
     initialize_combos_state,
     key_event_handler,
 )
-from wombo_combo.type_hints import BufferedKey
+from wombo_combo.type_hints import BufferEvent
 
 TestActiveCombo = tuple[int, Set[Key]]
-TestState = tuple[list[BufferedKey], list[TestActiveCombo]]
+TestState = tuple[list[BufferEvent], list[TestActiveCombo]]
 
 
 class BaseTestCase(unittest.TestCase):
@@ -49,16 +50,17 @@ class BaseTestCase(unittest.TestCase):
         self,
         incoming_event: KeyEvent | TimeOut,
         # incoming_state: GlobalState,
-        incoming_state: tuple[list[BufferedKey], list[TestActiveCombo]],
+        incoming_state: tuple[list[BufferEvent], list[TestActiveCombo]],
         expected_action: ResultAction,
         # expected_result_state: GlobalState,
-        expected_result_state: tuple[list[BufferedKey], list[TestActiveCombo]],
+        expected_result_state: tuple[list[BufferEvent], list[TestActiveCombo]],
     ):
         _incoming_state = GlobalState(
-            incoming_state[0], self.create_combos_state(incoming_state[1])
+            Buffer(incoming_state[0]),
+            self.create_combos_state(incoming_state[1]),
         )
         _expected_result_state: GlobalState = GlobalState(
-            expected_result_state[0],
+            Buffer(expected_result_state[0]),
             self.create_combos_state(expected_result_state[1]),
         )
         action = key_event_handler(
@@ -66,8 +68,8 @@ class BaseTestCase(unittest.TestCase):
         )
         self.assertEqual(action, expected_action)
         self.assertEqual(
-            set(b["key"] for b in _incoming_state.buffered_events),
-            set(b["key"] for b in _expected_result_state.buffered_events),
+            set(_incoming_state.buffer.keys),
+            set(_expected_result_state.buffer.keys),
         )
         # self.assertEqual(incoming_state.combos, expected_result_state.combos)
         for combo, expected_combo in zip(
@@ -100,5 +102,5 @@ class BaseTestCase(unittest.TestCase):
         return [mapper(combo) for combo in initialize_combos_state(self.CONFIG)]
 
 
-def buf_keys(*keys: Key) -> list[BufferedKey]:
+def buf_keys(*keys: Key) -> list[BufferEvent]:
     return [{"key": key, "time_pressed_ns": 0} for key in keys]

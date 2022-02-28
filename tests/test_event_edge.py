@@ -1,4 +1,5 @@
 from tests.base_test_case import BaseTestCase, buf_keys
+from wombo_combo.global_state import Buffer
 from wombo_combo.input_event_codes import Key
 from wombo_combo.main import GlobalState, KeyAlreadyPressed, key_event_handler
 
@@ -17,7 +18,7 @@ class TestKeyEdgeCaseEvents(BaseTestCase):
             key_event_handler(
                 incoming={"code": Key.KEY_J, "value": "down"},
                 state=GlobalState(
-                    [{"key": Key.KEY_J, "time_pressed_ns": 0}],
+                    Buffer([{"key": Key.KEY_J, "time_pressed_ns": 0}]),
                     self.create_combos_state([(3, {Key.KEY_U})]),
                 ),
             )
@@ -27,7 +28,7 @@ class TestKeyEdgeCaseEvents(BaseTestCase):
             key_event_handler(
                 incoming={"code": Key.KEY_U, "value": "down"},
                 state=GlobalState(
-                    [{"key": Key.KEY_J, "time_pressed_ns": 0}],
+                    Buffer([{"key": Key.KEY_J, "time_pressed_ns": 0}]),
                     self.create_combos_state([(3, {Key.KEY_U})]),
                 ),
             )

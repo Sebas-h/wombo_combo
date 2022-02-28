@@ -12,7 +12,7 @@ T = TypeVar("T")
 ################################################################################
 # Typed Dict
 ################################################################################
-class BufferedKey(TypedDict):
+class BufferEvent(TypedDict):
     key: Key
     time_pressed_ns: int
 

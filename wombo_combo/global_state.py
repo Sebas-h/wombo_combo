@@ -2,22 +2,36 @@ from dataclasses import dataclass
 from typing import Set
 
 from wombo_combo.input_event_codes import Key
-from wombo_combo.type_hints import ActiveCombo, BufferedKey, Combos, IdleCombo, KeyEvent
+from wombo_combo.type_hints import (
+    ActiveCombo,
+    BufferEvent,
+    Combos,
+    IdleCombo,
+    KeyEvent,
+)
+
+
+@dataclass
+class Buffer:
+    events: list[BufferEvent]
+
+    @property
+    def keys(self):
+        return [e["key"] for e in self.events]
+
+    def to_key_events(self, clear_buffer: bool) -> list[KeyEvent]:
+        key_events: list[KeyEvent] = [
+            {"code": e["key"], "value": "down"} for e in self.events
+        ]
+        if clear_buffer:
+            self.events.clear()
+        return key_events
 
 
 @dataclass
 class GlobalState:
-    buffered_events: list[BufferedKey]
+    buffer: Buffer
     combos: Combos
-
-    @property
-    def buffered_keys(self) -> list[Key]:
-        return [b["key"] for b in self.buffered_events]
-
-    def create_key_events_from_buffer(self) -> list[KeyEvent]:
-        return [
-            {"code": b["key"], "value": "down"} for b in self.buffered_events
-        ]
 
     def get_active_combos(self, key: Key) -> list[ActiveCombo]:
         return [
@@ -42,17 +56,17 @@ class GlobalState:
             if isinstance(combo, ActiveCombo)
             for active_key in combo.state
         )
-        return key in active_combos_keys.union(set(self.buffered_keys))
+        return key in active_combos_keys.union(set(self.buffer.keys))
 
-    def is_buffer_complete_combo(self) -> IdleCombo | None:
+    def is_buffer_a_combo(self) -> IdleCombo | None:
         for combo in self.combos:
-            if isinstance(combo, IdleCombo) and set(self.buffered_keys) == set(
+            if isinstance(combo, IdleCombo) and set(self.buffer.keys) == set(
                 combo.source
             ):
                 return combo
         return None
 
-    def activate_target(self, combo: IdleCombo) -> list[KeyEvent]:
+    def activate_combo(self, combo: IdleCombo) -> list[KeyEvent]:
         self.combos = list(
             map(
                 lambda cb: cb.to_active_combo()
@@ -62,7 +76,7 @@ class GlobalState:
             )
         )
         # Reset buffer
-        self.buffered_events.clear()
+        self.buffer.events.clear()
         # Return target (to be written out)
         return [{"code": k, "value": "down"} for k in combo.target]
 
@@ -81,7 +95,7 @@ class GlobalState:
         """
         # TODO: Should we make sure we do not return any combos that are currently
         # in `state.active_targets`?  Maybe it does not matter?
-        buff_keys: Set[Key] = set(self.buffered_keys).union({incoming_key})
+        buff_keys: Set[Key] = set(self.buffer.keys).union({incoming_key})
         return [
             combo
             for combo in self.combos
@@ -90,4 +104,10 @@ class GlobalState:
         ]
 
     def is_combo_complete(self, combo: IdleCombo, incoming_key: Key):
-        return set(combo.source) == set(self.buffered_keys + [incoming_key])
+        return set(combo.source) == set(self.buffer.keys + [incoming_key])
+
+    def is_combo_key(self, key: Key) -> bool:
+        for combo in self.combos:
+            if key in combo.source:
+                return True
+        return False

@@ -1,5 +1,4 @@
 from wombo_combo.global_state import GlobalState
-from wombo_combo.input_event_codes import Key
 from wombo_combo.type_hints import (
     ActiveCombo,
     ComboMap,
@@ -22,10 +21,7 @@ def key_event_handler(
     [key event] -> [key_event_handler()]{mutates global `state`} -> [action(s)]
     """
     if isinstance(incoming, TimeOut):
-        # We have timed out
-        events_to_write = state.create_key_events_from_buffer()
-        state.buffered_events.clear()
-        return events_to_write
+        return state.buffer.to_key_events(clear_buffer=True)
 
     if incoming["value"] == "down":
         return handle_key_down_event(incoming, state)
@@ -46,79 +42,68 @@ def handle_key_down_event(
 
     possible_combos = state.get_possible_combos(incoming_key)
 
-    if len(possible_combos) == 0:
-        if len(state.buffered_events) == 0:
-            return [incoming]
+    if len(possible_combos) > 0:
+        if len(possible_combos) == 1 and state.is_combo_complete(
+            possible_combos[0], incoming_key
+        ):
+            return state.activate_combo(possible_combos[0])
 
-        if combo := state.is_buffer_complete_combo():
-            write_events = state.activate_target(combo)
-            return write_events + [incoming]
+        # Append incoming key to buffer and return threshold timer ms
+        state.buffer.events.append({"key": incoming_key, "time_pressed_ns": 0})
+        return THRESHOLD_MS
 
-        # Cache buffered keys
-        tmp_buffered_keys = state.create_key_events_from_buffer()
+    if len(state.buffer.events) == 0:
+        return [incoming]
 
-        # Clear buffer in global state
-        state.buffered_events.clear()
+    if combo := state.is_buffer_a_combo():
+        write_events = state.activate_combo(combo)
+        return write_events + [incoming]
 
-        # Check if the incoming key on its own is part of a combo
-        if state.get_possible_combos(incoming_key):
-            state.buffered_events.append(
-                {"key": incoming["code"], "time_pressed_ns": 123}
-            )
-            return (tmp_buffered_keys, THRESHOLD_MS)
+    buffered_key_events = state.buffer.to_key_events(clear_buffer=True)
 
-        return tmp_buffered_keys + [incoming]
+    # Check if the incoming key on its own is part of a combo
+    if state.is_combo_key(incoming_key):
+        state.buffer.events.append(
+            {"key": incoming["code"], "time_pressed_ns": 123}
+        )
+        return (buffered_key_events, THRESHOLD_MS)
 
-    if (
-        len(state.buffered_events) > 0
-        and len(possible_combos) == 1
-        and state.is_combo_complete(possible_combos[0], incoming_key)
-    ):
-        combo = possible_combos[0]
-        return state.activate_target(combo)
-
-    # Append incoming key to buffer and return threshold timer ms
-    state.buffered_events.append({"key": incoming_key, "time_pressed_ns": 0})
-    return THRESHOLD_MS
+    return buffered_key_events + [incoming]
 
 
 def handle_key_up_event(incoming: KeyEvent, state: GlobalState) -> ResultAction:
     incoming_key = incoming["code"]
 
-    if incoming_key in state.buffered_keys:
-        # Return write all downs + latest up
-        to_write = state.create_key_events_from_buffer()
-        # Clear the buffer
-        state.buffered_events.clear()
-        return to_write + [incoming]
+    if incoming_key in state.buffer.keys:
+        buffered_key_events = state.buffer.to_key_events(clear_buffer=True)
+        return buffered_key_events + [incoming]
 
-    if active_combos := state.get_active_combos(incoming_key):
-        result_action: ResultAction = None
+    active_combos = state.get_active_combos(incoming_key)
 
-        # Handle fully downed combos
-        if fully_downed_combos := [
-            combo for combo in active_combos if combo.is_fully_down
-        ]:
-            result_action = [
-                {"code": tgt_key, "value": "up"}
-                for t in fully_downed_combos
-                for tgt_key in t.target
-            ]
+    if len(active_combos) == 0:
+        return [incoming]
 
-        # Update active combo state
-        for combo in active_combos:
-            combo.state = set(
-                filter(lambda x: x is not incoming_key, combo.state)
-            )
+    result_action: ResultAction = None
 
-        # Update active combo with empty state/set to idle combo
-        for idx, combo in enumerate(state.combos):
-            if isinstance(combo, ActiveCombo) and len(combo.state) == 0:
-                state.combos[idx] = combo.to_idle_combo()
+    if fully_downed_combos := [
+        combo for combo in active_combos if combo.is_fully_down
+    ]:
+        result_action = [
+            {"code": tgt_key, "value": "up"}
+            for t in fully_downed_combos
+            for tgt_key in t.target
+        ]
 
-        return result_action
+    # Update active combo state
+    for combo in active_combos:
+        combo.state = set(filter(lambda x: x is not incoming_key, combo.state))
 
-    return [incoming]
+    # Update active combo with empty state/set to idle combo
+    for idx, combo in enumerate(state.combos):
+        if isinstance(combo, ActiveCombo) and len(combo.state) == 0:
+            state.combos[idx] = combo.to_idle_combo()
+
+    return result_action
 
 
 def flatten_2d_seq(t: list[list[T]]) -> list[T]:
@@ -135,13 +120,3 @@ def initialize_combos_state(config: list[ComboMap]) -> Combos:
         )
         for idx, combo_map in enumerate(config)
     ]
-
-
-if __name__ == "__main__":
-    c = IdleCombo(
-        id=1,
-        source=[Key.KEY_A],
-        target=[Key.KEY_Z],
-        state=None,
-    )
-    print(c)
