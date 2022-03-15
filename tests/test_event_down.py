@@ -1,5 +1,6 @@
 from tests.base_test_case import BaseTestCase, buf_keys
 from wombo_combo.input_event_codes import Key
+from wombo_combo.type_hints import TimeOut
 
 
 class TestKeySingleEvents(BaseTestCase):
@@ -51,4 +52,31 @@ class TestKeySingleEvents(BaseTestCase):
             incoming_state=([], [(3, {Key.KEY_U})]),
             expected_action=50,
             expected_result_state=(buf_keys(Key.KEY_J), [(3, {Key.KEY_U})]),
+        )
+
+    def test_timeout_simple(self):
+        self.validate_handler_result(
+            incoming_event=TimeOut.TIMEOUT,
+            incoming_state=(
+                [{"key": Key.KEY_J, "time_pressed_ns": 0}],
+                [],
+            ),
+            expected_action=[{"code": Key.KEY_J, "value": "down"}],
+            expected_result_state=(buf_keys(), []),
+        )
+
+    def test_timeout_subcombo_buffer(self):
+        # TODO: Double check. I think this is a valid test/scenario that should
+        # actually pass the test
+        self.validate_handler_result(
+            incoming_event=TimeOut.TIMEOUT,
+            incoming_state=(
+                [
+                    {"key": Key.KEY_J, "time_pressed_ns": 0},
+                    {"key": Key.KEY_K, "time_pressed_ns": 0},
+                ],
+                [],
+            ),
+            expected_action=[{"code": Key.KEY_ESC, "value": "down"}],
+            expected_result_state=(buf_keys(), [(0, {Key.KEY_J, Key.KEY_K})]),
         )

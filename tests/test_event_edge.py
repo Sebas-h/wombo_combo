@@ -1,7 +1,8 @@
 from tests.base_test_case import BaseTestCase, buf_keys
-from wombo_combo.global_state import Buffer
+from wombo_combo.global_state import Buffer, GlobalState
 from wombo_combo.input_event_codes import Key
-from wombo_combo.main import GlobalState, KeyAlreadyPressed, key_event_handler
+from wombo_combo.key_event_handler import key_event_handler
+from wombo_combo.type_hints import KeyAlreadyPressed
 
 
 class TestKeyEdgeCaseEvents(BaseTestCase):

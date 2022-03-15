@@ -1,3 +1,36 @@
+# Diagrams
+
+```py
+combos = {
+    {"A", "B"}: "1",
+    {"A", "B", "C"}: "2",
+    {"A", "D"}: "3",
+    {"B", "E"}: "4",
+}
+```
+
+```mermaid
+flowchart TB
+    S[Start]
+    A["A-⬇️"]
+    AB["A-⬇️, B-⬇️"]
+    AC["A-⬇️, C-⬇️"]
+    AD["A-⬇️, D-⬇️"]
+    AE["A-⬇️, E-⬇️"]
+    AX["A-⬇️, NCK-⬇️"]
+
+    S-- "A-⬇️" -->A
+
+    A -->|"A-⬆️"| S
+    A -->|"B-⬇️"| AB
+    A -->|"C-⬇️"| AC
+    A -->|"D-⬇️"| AD 
+    A -->|"E-⬇️"| AE
+    A -->|"NCK-⬇️"| AX
+    A -->|"⏰"| A 
+```
+
+
 # Combo activator set rules
 
 Ignore ordering for:

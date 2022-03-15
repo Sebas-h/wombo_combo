@@ -1,5 +1,4 @@
-from main import (BufferedKey, ComboMap, Key, flatten_2d_seq,
-                  get_possible_combos)
+from main import BufferedKey, ComboMap, Key, get_possible_combos
 
 complex_config = dict(
     simul_combos=[
@@ -43,7 +42,7 @@ simple_config: list[ComboMap] = [
 ]
 
 
-COMBO_KEYS = set(flatten_2d_seq([c["activator"] for c in simple_config]))
+COMBO_KEYS = set(flatten_2d_list([c["activator"] for c in simple_config]))
 
 
 # Verify the config actually makes sense

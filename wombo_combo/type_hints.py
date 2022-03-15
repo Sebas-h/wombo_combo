@@ -18,8 +18,10 @@ class BufferEvent(TypedDict):
 
 
 class ComboMap(TypedDict):
-    activator: list[Key]
-    to: list[Key]
+    # activator: list[Key]
+    # to: list[Key]
+    activator: tuple[Key, ...]
+    to: tuple[Key, ...]
 
 
 class KeyEvent(TypedDict):
@@ -39,35 +41,40 @@ class ActiveTarget(TypedDict):
 @dataclass
 class BaseCombo:
     id: int
-    source: list[Key]
-    target: list[Key]
+    # source: list[Key]
+    # target: list[Key]
+    source: tuple[Key, ...]
+    target: tuple[Key, ...]
 
 
 @dataclass
 class IdleCombo(BaseCombo):
-    state: None
+    pressed_keys: None
 
     def to_active_combo(self):
         return ActiveCombo(
             id=self.id,
             source=self.source,
             target=self.target,
-            state=set(self.source),
+            pressed_keys=set(self.source),
         )
 
 
 @dataclass
 class ActiveCombo(BaseCombo):
-    state: Set[Key]
+    pressed_keys: Set[Key]
 
     # active_keys: Set[Key] | None
     @property
     def is_fully_down(self) -> bool:
-        return self.state == set(self.source)
+        return self.pressed_keys == set(self.source)
 
     def to_idle_combo(self) -> IdleCombo:
         return IdleCombo(
-            id=self.id, source=self.source, target=self.target, state=None
+            id=self.id,
+            source=self.source,
+            target=self.target,
+            pressed_keys=None,
         )
 
 
@@ -85,11 +92,15 @@ class KeyAlreadyPressed(Exception):
 ################################################################################
 # Type Alias
 ################################################################################
-Combos = list[ActiveCombo | IdleCombo]
+CombosState = list[ActiveCombo | IdleCombo]
 
 # NOTE: mypy (v0.931) doesn't support `|` yet when defining type aliases... 😕
-# ResultAction = Tuple[list[KeyEvent], int] | list[KeyEvent] | int | None
-ResultAction = Union[Tuple[list[KeyEvent], int], list[KeyEvent], int, None]
+ResultAction = Union[
+    None,
+    int,
+    list[KeyEvent],
+    Tuple[list[KeyEvent], int],
+]
 
 
 ################################################################################

@@ -5,7 +5,7 @@ from wombo_combo.input_event_codes import Key
 from wombo_combo.type_hints import (
     ActiveCombo,
     BufferEvent,
-    Combos,
+    CombosState,
     IdleCombo,
     KeyEvent,
 )
@@ -16,7 +16,7 @@ class Buffer:
     events: list[BufferEvent]
 
     @property
-    def keys(self):
+    def keys(self) -> list[Key]:
         return [e["key"] for e in self.events]
 
     def to_key_events(self, clear_buffer: bool) -> list[KeyEvent]:
@@ -31,13 +31,13 @@ class Buffer:
 @dataclass
 class GlobalState:
     buffer: Buffer
-    combos: Combos
+    combos: CombosState
 
     def get_active_combos(self, key: Key) -> list[ActiveCombo]:
         return [
             combo
             for combo in self.combos
-            if isinstance(combo, ActiveCombo) and key in combo.state
+            if isinstance(combo, ActiveCombo) and key in combo.pressed_keys
         ]
 
     def get_fully_downed_combos(self, key: Key) -> list[ActiveCombo]:
@@ -46,7 +46,7 @@ class GlobalState:
             for combo in self.combos
             if isinstance(combo, ActiveCombo)
             and combo.is_fully_down
-            and key in combo.state
+            and key in combo.pressed_keys
         ]
 
     def is_key_pressed(self, key: Key) -> bool:
@@ -54,11 +54,11 @@ class GlobalState:
             active_key
             for combo in self.combos
             if isinstance(combo, ActiveCombo)
-            for active_key in combo.state
+            for active_key in combo.pressed_keys
         )
         return key in active_combos_keys.union(set(self.buffer.keys))
 
-    def is_buffer_a_combo(self) -> IdleCombo | None:
+    def is_buffer_complete_combo(self) -> IdleCombo | None:
         for combo in self.combos:
             if isinstance(combo, IdleCombo) and set(self.buffer.keys) == set(
                 combo.source
@@ -82,28 +82,23 @@ class GlobalState:
 
     def get_possible_combos(self, incoming_key: Key) -> list[IdleCombo]:
         """
-        Retruns list of combos that are possible given the keys being buffered and
-        the incoming key
-
-        Example:
-            if incoming = KEY_J
-               and buffered = [ KEY_K ]
-               and config includes the map `{KEY_J, KEY_K} to KEY_ESC`
-            then
-                `{KEY_J, KEY_K} to KEY_ESC` will be returned as one of the
-                possible combos
+        Retruns list of combos that are possible given the buffered keys in
+        combination with the incoming key.
+        Note that possible combos do not have to be complete yet (i.e. all its
+        source keys do not have to be pressed yet)
         """
-        # TODO: Should we make sure we do not return any combos that are currently
-        # in `state.active_targets`?  Maybe it does not matter?
-        buff_keys: Set[Key] = set(self.buffer.keys).union({incoming_key})
+        keys: Set[Key] = set(self.buffer.keys).union({incoming_key})
         return [
             combo
             for combo in self.combos
-            if isinstance(combo, IdleCombo)
-            and buff_keys.issubset(set(combo.source))
+            if isinstance(combo, IdleCombo) and keys.issubset(set(combo.source))
         ]
 
     def is_combo_complete(self, combo: IdleCombo, incoming_key: Key):
+        """
+        Check whether the buffered keys in combination with the incoming key
+        matches/completes the given combo.
+        """
         return set(combo.source) == set(self.buffer.keys + [incoming_key])
 
     def is_combo_key(self, key: Key) -> bool:
